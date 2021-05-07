@@ -1,11 +1,12 @@
-\documentclass[DM,authoryear,toc]{lsstdoc}
+\documentclass[DM,lsstdraft, authoryear,toc]{lsstdoc}
 % lsstdoc documentation: https://lsst-texmf.lsst.io/lsstdoc.html
 \input{meta}
 
 % Package imports go here.
-
+\usepackage{amsmath}
+\usepackage{amssymb}
 % Local commands go here.
-
+\newcommand{\rmd}{\mathrm{d}^2}
 %If you want glossaries
 %\input{aglossary.tex}
 %\makeglossaries
@@ -49,6 +50,121 @@ Rubin Science Pipelines of the Gaussian-Aperture and PSF photometry algorithm fo
 
 % ADD CONTENT HERE
 % You can also use the \input command to include several content files.
+\section{Notation}
+\begin{itemize}
+    \item $g({\bf x})$: unobservable pre-seeing galaxy profile
+    \item $G({\bf x})$: observable image of galaxy with a Gaussian PSF
+    \item $I({\bf x})$: observed image of the galaxy with some PSF
+    \item $K({\bf x})$: convolution kernel that converts $I({\bf x})$ to $G({\bf x})$, with a desired Gaussian PSF.
+\end{itemize}
+
+\section{GAaP flux}
+Based on Eq. A16 of \cite{Kuijken2015}, the GAaP flux with an aperture parameter ${\bf W}$ is defined as follows:
+\begin{align}
+  F_{\bf W} &\equiv \int\rmd{\bf x}\, g({\bf x})\exp\left( -\frac{1}{2}{\bf x}^T{\bf W}^{-1}{\bf x} \right) \\
+        &= \frac{1}{2}\frac{\det({\bf W})^{1/2}}{\det({\bf W}-p^2{\bf 1})^{1/2}}\times 2\int\rmd{\bf x} G(\bf x) \exp\left(-\frac{1}{2}{\bf x}^T({\bf W}-p^2{\bf 1})^{-1}{\bf x}\right),
+  \label{eq:A16}
+\end{align}
+where $G({\bf x})$ is the image of $g({\bf x})$ after convolution by a Gaussian PSF of size $p$.
+The integral is computed using \texttt{computeFixedMomentsFlux}\footnote{
+  Note: \texttt{computeFixedMomentsFlux} computes the flux of an image $I({\bf x})$ weighted by an aperture ${\bf Q}$ as $2\int\rmd{\bf x}\, I({\bf x})\exp\left(-\frac{1}{2} {\bf x}^T {\bf Q}^{-1}{\bf x}\right)$, with a factor 2 in the normalization. This is such that if $I({\bf x})$ is a Gaussian with shape ${\bf Q}$ and has a total flux $F$, the integral evaluates to $F$.} 
+  by passing the PSF-Gaussianize image and shape parameter $({\bf W}-p^2{\bf 1})$.
+The factor multiplying the integral, especially $\det({\bf W}-p^2{\bf 1})^{1/2}$, is required to keep $F_{\bf W}$ PSF-independent.
+We refer to this factor, the square root of the ratio of determinants, as \texttt{fluxScaling}. We scale the \texttt{instFlux} value from the \texttt{computeFixedMomentsFlux} method with \texttt{fluxScaling}.
+
+For circular apertures, $\texttt{fluxScaling} = \frac{1}{2}\frac{\sigma_w^2}{\sigma_w^2-p^2}$, 
+where ${\bf W} = \sigma_w^2 \bf{1}$. In the GAaP plugin, $\sigma_w$ values are specified in the \texttt{sigmas} config parameter..
+
+\section{Propagating noise covariance}
+Let us calculate the covariance $C^G$ between the errors on two pixel values $G({\bf x})$ and $G({\bf y})$. Rewriting Eq. A9 of \cite{Kuijken2015}, we get
+\begin{equation}
+  Cov(G({\bf x}), G({\bf y})) = \int\int\rmd{\bf x}'\rmd{\bf y}'\, Cov(I({\bf x}'),I({\bf y}'))\, K({\bf x}-{\bf x}')K({\bf y}-{\bf y}')
+\end{equation}
+
+In KiDS papers, including \cite{Kuijken2015}, translational invariance is assumed and $Cov(I({\bf x}'),I({\bf y}'))$ is expressed as a function of $({\bf x}'-{\bf y}')$ alone and an appropriate covariance matrix is constructed empirically.
+
+However, in Rubin science pipelines, because we keep track of only the variance , our model for $Cov(I({\bf x}'), I({\bf y}')) = \sigma^2({\bf x}')\delta_D({\bf x'}-{\bf y}')$, where $\sigma^2({\bf x}')$ is given by the variance plane. This is incorrect strictly speaking, as the noise \emph{is} correlated on the coadds. However, we proceed with the information we have available. Substituting this in the above equation, we get
+\begin{equation}
+  Cov(G({\bf x}), G({\bf y})) = \int\rmd{\bf x}'\, \sigma^2({\bf x}') K({\bf x}-{\bf x}')K({\bf y}-{\bf x}')
+\end{equation}
+
+The kernel $K$ is expected to be compact, and if the variance plane is slowly varying, we can approximate $\sigma^2({\bf x}')$ by the variance value at the centroid of the source, say $\sigma^2$. This approximation is further justified because of Gaussian weighting we will employ in Eq.~\ref{eq:A17}, which makes the effective kernel even more compact. Redefining ${\bf x}' \rightarrow {\bf x} - {\bf x}'$ ($\rmd{\bf x}' \rightarrow \rmd{\bf x}'$ because the dimensionality is even), we get
+\begin{equation}
+  Cov(G({\bf x}), G({\bf y})) \approx \sigma^2 \xi_K({\bf r}) \equiv C^G({\bf r}),
+\end{equation}
+where ${\bf r} = {\bf y}-{\bf x}$. Thus, the covariance is the auto-correlation function of the kernel $K$ $\xi_K({\bf r}) \equiv \int\rmd{\bf x}\, K({\bf x})K({\bf x}+{\bf r})$  scaled by the variance $\sigma^2$ at the location of the source. The auto-correlation function is computed by the \texttt{\_computeKernelAcf} static method.
+
+\section{Estimating uncertainties}
+Eq. A17 of~\cite{Kuijken2015} says
+\begin{equation}
+    \text{Var}(F_{\bf W}) = \frac{\det({\bf W})}{\det({\bf W}-p^2\bf{1})} \pi \det({\bf W}-p^2{\bf 1})^{1/2} \int\rmd {\bf x}\, C^G({\bf x}) \exp\left(-\frac{1}{4}{\bf x}^T({\bf W}-p^2{\bf 1})^{-1}{\bf x}\right).
+    \label{eq:A17}
+\end{equation}
+Note the missing factor of $2^{1/2}$, which is an error in \cite{Kuijken2015}.
+Since we represent
+\begin{equation}
+    C^G({\bf r}) = \sigma^2 \xi_{K}({\bf r}),
+\end{equation}
+we get
+\begin{equation}
+  \text{Var}(F_{\bf W}) = \frac{\det({\bf W})}{\det({\bf W}-p^2\bf{1})}\left(\frac{1}{2}\right)^2 \times 4\pi \sigma^2 \det({\bf W}-p^2{\bf 1})^{1/2} \times \int\rmd {\bf r}\, \xi_{K}({\bf r}) \exp\left(-\frac{1}{2}{\bf r}^T(2({\bf W}-p^2{\bf 1}))^{-1}{\bf r}\right).
+\end{equation}
+We categorize them into three terms, separated by $\times$. 
+\begin{enumerate}
+  \item The naive calculation of flux variance by \texttt{computeFixedMomentsFlux} yields the middle term $4\pi \sigma^2 \det({\bf W}-p^2{\bf 1})^{1/2}$ (given by \texttt{instFluxErr}$^2$).
+  \item The factor $\frac{1}{4}\frac{\det({\bf W})}{\det({\bf W}-p^2\bf{1})}$ appears because of the scaling factor in $F_{\bf W}$ (Eq. A16 of \cite{Kuijken2015}).
+  \item The square root of the integral is computed by \texttt{\_getFluxErrScaling} and referred to as \texttt{fluxErrScaling}. This is the actual contribution due to correlations in the noise introduced by PSF-Gaussianization procedure. This is computed using \texttt{computeFixedMomentsFlux} on the auto-correlation function, with $2 \times$ the shape parameter of aperture used to measure $F_{\bf W}$.
+  
+  If the PSF had been Gaussian to begin with, or if we were neglecting the effects of correlated noise on flux uncertainties, $K({\bf r}) = \delta_D({\bf r})$. This leads to the integral evaluating to 1.
+\end{enumerate}
+
+Note that from the definition of $\xi_K({\bf r})$, it follows that
+\begin{align}
+  \int\rmd{\bf r}\, \xi_K({\bf r}) &= \int\rmd{\bf r}\, \int\rmd{\bf x}\, K({\bf x})K({\bf x}+{\bf r})\\ 
+                                   &= \int\rmd{\bf x}\, K({\bf x}) \int\rmd{\bf r}\, K({\bf x}+{\bf r})\\
+                                   &= \left[ \int\rmd{\bf x}\, K({\bf x})\right]^2
+                                   \label{eq:integral_acf}
+\end{align}
+
+In a similar manner, the integral for \texttt{fluxErrScaling} can also be expressed as
+\begin{equation}
+  \int\rmd {\bf r}\, \xi_{K}({\bf r}) \exp\left(-\frac{1}{2}{\bf r}^T(2({\bf W}-p^2{\bf 1}))^{-1}{\bf r}\right) =
+  \left[ \int\rmd{\bf x}\int\rmd{\bf y} K({\bf x}-{\bf y}) \exp\left(-\frac{1}{2}{\bf y}^T({\bf W}-p^2{\bf 1})^{-1}{\bf y}\right)\right]^2.
+\end{equation}
+The proof follows by considering $\int\rmd{\bf x} f({\bf x}) = \tilde{f}(0)$, where $\tilde{f}$ is the Fourier transform of $f$.
+
+\subsection{Special case of Gaussian kernels}
+Suppose $I({\bf x})$ has a circular Gaussian PSF of size $s$ and the target PSF is a Gaussian PSF of size $p = fs$ ($f>1$), then the kernel $K$ is also a Gaussian of size $s(f^2-1)^{1/2}$. 
+In the GAaP plugin, the values for $f$ are given by \texttt{scalingFactors}.
+
+Since flux-conservation implies $\int\rmd{\bf x}\, K({\bf x}) = 1$, we can immediately write
+\begin{equation}
+  K({\bf x}) = \frac{1}{2\pi (f^2-1)s^2} \exp\left(-\frac{{\bf x}^T{\bf x}}{2(f^2-1)s^2}\right)
+\end{equation}
+
+The auto-correlation function $\xi_K({\bf r})$ is then given by 
+\begin{equation}
+  \xi_K({\bf r}) = \frac{1}{4\pi(f^2-1)s^2}\exp\left(-\frac{{\bf r}^T{\bf r}}{4(f^2-1)s^2}\right).
+\end{equation}
+This is easy to see by first recognizing that $\xi_K({\bf r})$ must be a Gaussian with size $\sqrt{2}$ times larger than that of $K$ and the normalization factor follows that $\xi_K({\bf r})$ must integrate to 1 if $K$ integrates to 1 (see Eq.~\ref{eq:integral_acf}).
+
+The square of the \texttt{fluxErrScaling} parameter is then given by the Gaussian integral
+\begin{equation*}
+  \int\rmd{\bf r}\,\xi_K({\bf r})\exp(-\frac{{\bf r}^T{\bf r}}{4(\sigma^2-p^2)}),
+\end{equation*}
+where $\sigma$ is the size of the Gaussian aperture for the pre-seeing source $g({\bf x})$. In the GAaP plugin, these values are given by \texttt{sigmas} config parameter.
+
+The exponents of the Gaussians is simplified as follows.
+\begin{equation}
+  \frac{{-\bf r}^T{\bf r}}{4}\left(\frac{1}{(f^2-1)s^2} + \frac{1}{(\sigma^2-f^2s^2)} \right)
+  = \frac{{-\bf r}^T{\bf r}}{4}\left( \frac{\sigma^2 - s^2}{s^2(f^2-1)(\sigma^2-f^2s^2)} \right)
+\end{equation},
+where $p$ is replaced by $fs$. Evaluating the Gaussian integral, we get
+\begin{align}
+  \texttt{fluxErrScaling}^2 &= \frac{1}{4\pi (f^2-1)s^2} \times \frac{\pi 4s^2(f^2-1)(\sigma^2-f^2s^2)}{\sigma^2-s^2} \\
+  &= \frac{\sigma^2-f^2s^2}{\sigma^2-s^2}
+\end{align}
+As a consistency check, we get $\texttt{fluxErrScaling} = 1$ for $f=1$, i.e., if we do not carry out the PSF-Gaussianization procedure. For $f>1$, $\texttt{fluxErrScaling} < 1$. As an aside, if $\xi_K({\bf r}) \ge 0$ for all ${\bf r}$ (as in the Gaussian kernel case), \texttt{fluxErrScaling} is guaranteed to be less than 1. In other words, the naive flux uncertainty overestimates the true uncertainty. For naive errors to be an underestimation of true errors, it is necessary that the kernel should be negative for sufficiently small $|{\bf r}|$. Intuitively, this makes sense; non-negative valued kernel smoothes the noise in the image, reducing its power, whereas as kernel with both positive and negative values has the potential to amplify the random fluctuations in different pixels.
 
 \appendix
 % Include all the relevant bib files.
