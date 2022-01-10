@@ -1,0 +1,74 @@
+\section{Introduction}
+Galaxy photometry is a hard problem, if not impossible.
+Unlike stellar photometry (in non-crowded regions) where we know the true, intrinsic profile (a point source), we do not usually know the profile for extended sources (galaxies).
+This is especially true at the outskirts of the galaxies where they smoothly blend in with the sky background and we need to model the wings of the PSFs accurately.
+Errors in either of these models lead to systematic errors.
+%Aperture correction is not immune to this as it requires making an assumption about the tail of the galaxies.
+%Total fluxes are model-dependent (and observation dependent) and are ill-defined in practice.
+
+Fortunately, having total fluxes is sufficient, and not necessary, to define colors of objects.
+It is often easier to obtain color information from multiband images, and is sufficient for obtaining scientifically interesting quantities such as photometric redshifts.
+Total flux or magnitudes is useful to quantify stellar luminosities (SED of total light emitted in all the bands) and masses.
+However, in addition to a total magnitude in a reference band, ratios of fluxes in different bands (colors) are sufficient for studies involved in photometric redshifts, stellar populations, star-formation rates etc.
+They usually have different requirements, and will coincide for unresolved/point sources.
+
+\subsection{Notation}
+Throughout this technote, we use the following notation consistently.
+
+\begin{itemize}
+    \item $g({\bf x})$: unobservable pre-seeing galaxy profile
+    \item $G({\bf x})$: observable image of galaxy with a Gaussian PSF
+    \item $I({\bf x})$: observed image of the galaxy with some PSF
+    \item $P({\bf x})$: PSF profile in the observed image $I({\bf x})$, including the pixel response.
+    \item $K({\bf x})$: convolution kernel that converts $I({\bf x})$ to $G({\bf x})$, with a desired Gaussian PSF.
+    \item $w({\bf x})$: aperture applied on the pre-seeing image $g({\bf x})$ (referred to as `pre-seeing aperture')
+    \item $A({\bf x})$: aperture applied on the observed image $I({\bf x})$ (referred to as `post-seeing aperture')
+\end{itemize}
+
+\subsection{Consistent colors}
+\textbf{Definition:} If we apply the same weight to each star in a galaxy across all bands, then it is a consistent color.
+In practice, this means use the same weight function $w({\bf x})$ across all bands.
+If the galaxy has the same morphology in two bands, then a consistent color is the same as 'complete' color,
+which is the ratio of total fluxes.
+
+If we model a galaxy purely as a collection of stars, $g^{(b)}({\bf x}) = \sum_* f^{(b)}_*\delta_D({\bf x}-{\bf x}_*)$.
+Its total flux $F^{(b)} = \int\rmd{\bf x}\, g^{(b)}({\bf x}) = \sum_* f^{b}_*$.
+We define \emph{complete color} (or total color) as the color of a galaxy obtained from its total fluxes.
+Given two passbands $b_1$ and $b_2$, a \emph{complete color} is defined as
+\begin{equation}
+  C(b_1,b_2) \equiv \frac{F^{(b_1)}_w}{F^{(b_2)}_w} = \frac{\int\rmd{\bf x}\, g^{(b_1)}({\bf x})}{\int\rmd{\bf x}\, g^{(b_2)}({\bf x})}
+\end{equation}
+It is worth noting that a complete color is not the same as the average color of its constituent stars, i.e.,
+$C(b_1,b_2) \ne \left\langle \frac{f^{(b_1)}_*}{f^{(b_2)}_*} \right\rangle_*$
+
+Given two passbands $b_1$ and $b_2$, a \emph{consistent color} is defined as
+\begin{equation}
+  C_w(b_1, b_2) \equiv \frac{F^{(b_1)}_w}{F^{(b_2)}_w} = \frac{\int\rmd{\bf x}\,w({\bf x}) g^{(b_1)}({\bf x})}{\int\rmd{\bf x}\,w({\bf x}) g^{(b_1)}({\bf x})}
+\end{equation}
+
+A complete color is a consistent color, as it corresponds to the choice of $w({\bf x}) \equiv 1$.
+A consistent color defined with some weight $w$ is insensitive to $w$ and identical to complete color in the absence of color gradients.
+While $F^{(b)}_w$ is not an estimator of \emph{total} flux, the ratio ${F^{(b_1)}_w}/{F^{(b_2)}_w}$ (consistent color) matches the ratio of total fluxes ${F^{(b_1)}}/{F^{(b_2)}}$ (complete color)
+if the morphology is the same in the two bands, i.e., $g^{(b)}({\bf x}) \propto F^{(b)} g({\bf x})$ for $b=b_1,b_2$.
+While this is generally not true for galaxies, it is true for stars and other point sources.
+In fact, $F^{(b)}_w = F^{(b)}$ for point sources if $w({\bf x})$ is normalized to have a unit amplitude.
+For extended sources, $C_w(b_1, b_2)$ is sensitive to the
+weight function. This means that in the presence of a non-trivial weight $w({\bf x})$, galaxy color is not invariant to moving the stars around within the galaxy, which the ratio of total fluxes is insensitive to. The complete color is only sensitive to changes in the fraction of different stellar populations within a galaxy.
+
+Having a compact weight function allows extracting the color information from the bright regions of a galaxy by upweighting the central regions.
+If the color gradients were absent, one could choose the formally optimal (or a near-optimal) weight function $w({\bf x})$ for each galaxy to maximize the signal-to-noise ratio of its color estimate.
+However, since the color of a galaxy is sensitive to $w$ in practice, varying $w$ for each galaxy may lead to difficulty in calibrating photometric redshift codes.
+Furthermore, choosing the shape\footnote{It is unavoidable to use the detection peaks from the same image.} of $w$ from the same image we measure the flux from can lead to the estimate being non-linear and biased.
+It might be preferable to use a weight function that is circular and slightly sub-optimal that is appropriate to a population of galaxy.
+Having a variety of weight functions allows one to study the population of stars as a function of radial distance.
+
+\begin{comment}
+\subsection{Noise bias}
+Ideally, we want linear estimator.
+This is impossible if the weight function is centered based on the measured centroid from the same image.
+Adaptive the shape of the weight function to match the observed shape of the source worsens it.
+However, if even the flux estimator is linear, the estimator for color as the ratio of flux estimators is biased, as it is not linear.
+Morever, the bias depends on the color in the non-trivial way.
+It would be beneficial to use adaptive weight function to perform optimal photometry instead of circular apertures with pre-defined widths.
+We provide both the
+\end{comment}

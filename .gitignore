@@ -17,6 +17,7 @@ one.*
 *.fot
 *.cb
 *.cb2
+*.xdv
 
 
 ## Intermediate documents:
@@ -173,6 +174,7 @@ TSWLatexianTemp*
 # WinEdt
 *.bak
 *.sav
+*.vscode
 
 # Texpad
 .texpadtmp
