@@ -95,7 +95,7 @@ Rather than using the formal solution to find the post-seeing aperture, the impl
 
 Hence, the algorithm is named Gaussian-Aperture and (Gaussian) PSF.
 
-Based on Eq. A16 of \cite{Kuijken2015}, the GAaP flux with an aperture parameter ${\bf W}$ is defined as follows:
+Based on Eq. A16 of \cite{2015MNRAS.454.3500K}, the GAaP flux with an aperture parameter ${\bf W}$ is defined as follows:
 \begin{align}
   F_{\bf W} &\equiv \int\rmd{\bf x}\, g({\bf x})\exp\left( -\frac{1}{2}{\bf x}^T{\bf W}^{-1}{\bf x} \right) \\
         &= \frac{1}{2}\frac{\det({\bf W})^{1/2}}{\det({\bf W}-p^2{\bf 1})^{1/2}}\times 2\int\rmd{\bf x} G(\bf x) \exp\left(-\frac{1}{2}{\bf x}^T({\bf W}-p^2{\bf 1})^{-1}{\bf x}\right),
@@ -170,7 +170,7 @@ For Nyquist-limited samples of band-limited function,
 Even though the observed image will be band-limited to some extent, the Gaussian aperture we apply is not.
 As a result, the inner product will be biased estimator of the integral.
 In particular, the measured flux becomes sensitive to where the centroid is located with a pixel.
-In principle, one needs to interpolate the pixels to form a continuous function, and then integrate the function with the Gaussian aperture (see \cite{Bickerton2013}).
+In principle, one needs to interpolate the pixels to form a continuous function, and then integrate the function with the Gaussian aperture (see \cite{2013MNRAS.431.1275B}).
 However, this procedure is computationally expensive.
 
 %For top-hat apertures, the integral over the image is simply the sum of the pixels, except at the edges that partially overlap the pixels.
@@ -188,7 +188,7 @@ For $\sigma_w \lesssim 0.7$, the measured flux becomes strongly dependent on the
 After marginalizing over the centroid locations, the mean flux is still an underestimate of the expected value.
 
 If we instead interpolate the pixels with a \texttt{sinc} function to form a continuous function and then evaluate the integral, the measured flux is in much better agreement with the analytical expections.
-Adapting the method suggested in~\cite{Bickerton2013} for Gaussian apertures, we compute a set of coefficients to take inner product with the pixel values of the image.
+Adapting the method suggested in~\cite{2013MNRAS.431.1275B} for Gaussian apertures, we compute a set of coefficients to take inner product with the pixel values of the image.
 The measured fluxes agree with the expectation for large ($\sigma_s \gtrsim 2$) and biased only slightly for $\sigma_s \sim 1$ when $\sigma_w \lesssim 0.6$
 
 If we measure its flux from pixellated images with a circular Gaussian aperture of size $\sigma_w$ pixels, the expected GAaP flux is $F\left(1+\frac{\sigma_s^2}{\sigma_w^2}\right)^{-1}$ (see Eq.~\ref{eq:gauss_gaap_flux}).
@@ -201,12 +201,12 @@ For $\sigma \gtrsim 0.85$ pixels, the flux is accurate to better than 0.1\%.
 In practice, we do not expect to use such narrow Gaussian apertures.
 
 \subsection{Estimating noise covariance}
-Let us calculate the covariance $C^G$ between the errors on two pixel values $G({\bf x})$ and $G({\bf y})$. Rewriting Eq. A9 of \cite{Kuijken2015}, we get
+Let us calculate the covariance $C^G$ between the errors on two pixel values $G({\bf x})$ and $G({\bf y})$. Rewriting Eq. A9 of \cite{2015MNRAS.454.3500K}, we get
 \begin{equation}
   Cov(G({\bf x}), G({\bf y})) = \int\int\rmd{\bf x}'\rmd{\bf y}'\, Cov(I({\bf x}'),I({\bf y}'))\, K({\bf x}-{\bf x}')K({\bf y}-{\bf y}')
 \end{equation}
 
-In KiDS papers, including \cite{Kuijken2015}, translational invariance is assumed and $Cov(I({\bf x}'),I({\bf y}'))$ is expressed as a function of $({\bf x}'-{\bf y}')$ alone and an appropriate covariance matrix is constructed empirically.
+In KiDS papers, including \cite{2015MNRAS.454.3500K}, translational invariance is assumed and $Cov(I({\bf x}'),I({\bf y}'))$ is expressed as a function of $({\bf x}'-{\bf y}')$ alone and an appropriate covariance matrix is constructed empirically.
 
 However, in Rubin science pipelines, we keep track of the variance (and only variance) per pixel.
 So, our model for $Cov(I({\bf x}'), I({\bf y}')) = \sigma^2({\bf x}')\delta_D({\bf x'}-{\bf y}')$, where $\sigma^2({\bf x}')$ is given by the variance plane.
@@ -222,12 +222,12 @@ The kernel $K$ is expected to be compact, and if the variance plane is slowly va
 where ${\bf r} = {\bf y}-{\bf x}$. Thus, the covariance is the auto-correlation function of the kernel $K$ $\xi_K({\bf r}) \equiv \int\rmd{\bf x}\, K({\bf x})K({\bf x}+{\bf r})$  scaled by the variance $\sigma^2$ at the location of the source. The auto-correlation function is computed by the \texttt{\_computeKernelAcf} static method.
 
 \subsection{Estimating uncertainties}
-Eq. A17 of~\cite{Kuijken2015} says
+Eq. A17 of~\cite{2015MNRAS.454.3500K} says
 \begin{equation}
     \text{Var}(F_{\bf W}) = \frac{\det({\bf W})}{\det({\bf W}-p^2\bf{1})} \pi \det({\bf W}-p^2{\bf 1})^{1/2} \int\rmd {\bf x}\, C^G({\bf x}) \exp\left(-\frac{1}{4}{\bf x}^T({\bf W}-p^2{\bf 1})^{-1}{\bf x}\right).
     \label{eq:A17}
 \end{equation}
-Note the missing factor of $2^{1/2}$, which is an error in \cite{Kuijken2015}.
+Note the missing factor of $2^{1/2}$, which is an error in \cite{2015MNRAS.454.3500K}.
 Since we represent
 \begin{equation}
     C^G({\bf r}) = \sigma^2 \xi_{K}({\bf r}),
@@ -239,7 +239,7 @@ we get
 We categorize them into three terms, separated by $\times$.
 \begin{enumerate}
   \item The naive calculation of flux variance by \texttt{computeFixedMomentsFlux} yields the middle term $4\pi \sigma^2 \det({\bf W}-p^2{\bf 1})^{1/2}$ (given by \texttt{instFluxErr}$^2$).
-  \item The factor $\frac{1}{4}\frac{\det({\bf W})}{\det({\bf W}-p^2\bf{1})}$ appears because of the scaling factor in $F_{\bf W}$ (Eq. A16 of \cite{Kuijken2015}).
+  \item The factor $\frac{1}{4}\frac{\det({\bf W})}{\det({\bf W}-p^2\bf{1})}$ appears because of the scaling factor in $F_{\bf W}$ (Eq. A16 of \cite{2015MNRAS.454.3500K}).
   \item The square root of the integral is computed by \texttt{\_getFluxErrScaling} and referred to as \texttt{fluxErrScaling}. This is the actual contribution due to correlations in the noise introduced by PSF-Gaussianization procedure. This is computed using \texttt{computeFixedMomentsFlux} on the auto-correlation function, with $2 \times$ the shape parameter of aperture used to measure $F_{\bf W}$.
 
   If the PSF had been Gaussian to begin with, or if we were neglecting the effects of correlated noise on flux uncertainties, $K({\bf r}) = \delta_D({\bf r})$. This leads to the integral evaluating to 1.
